@@ -11,6 +11,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 🟢 QUICK DEBUG ROUTE (To test if server is running on Render)
+app.get('/', (req, res) => {
+  res.send('API is running 🚀');
+});
+
 const JWT_SECRET = process.env.JWT_SECRET || 'surya_studio_fallback_secret';
 
 // 🔐 AUTH MIDDLEWARE
