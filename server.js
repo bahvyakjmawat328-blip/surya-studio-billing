@@ -307,9 +307,26 @@ app.post('/api/invoices', async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        // Find Client ID
-        const [clients] = await connection.query('SELECT id FROM clients WHERE name = ?', [inv.client?.name]);
-        const clientID = clients[0]?.id || null;
+        // Find or Create Client ID
+        let clientID = null;
+        if (inv.client && inv.client.name) {
+            const [clients] = await connection.query('SELECT id FROM clients WHERE name = ?', [inv.client.name]);
+            if (clients.length > 0) {
+                clientID = clients[0].id;
+                // Optionally update client data here
+            } else {
+                const [newClient] = await connection.query(
+                    'INSERT INTO clients (name, phone, email, address, gst_number) VALUES (?, ?, ?, ?, ?)',
+                    [inv.client.name, inv.client.phone || null, inv.client.email || null, inv.client.address || null, inv.client.gstin || null]
+                );
+                clientID = newClient.insertId;
+            }
+        }
+
+        if (!clientID) {
+            const [fallback] = await connection.query('INSERT INTO clients (name) VALUES ("Unknown Client")');
+            clientID = fallback.insertId;
+        }
 
         const [result] = await connection.query(
             'INSERT INTO invoices (invoice_number, client_id, invoice_date, total_amount, tax_amount, discount_amount, paid_amount, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
