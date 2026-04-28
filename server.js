@@ -328,8 +328,8 @@ app.post('/api/invoices', async (req, res) => {
         }
 
         const [result] = await connection.query(
-            'INSERT INTO invoices (invoice_number, client_id, invoice_date, total_amount, tax_amount, discount_amount, paid_amount, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [inv.number, clientID, inv.date, inv.total, inv.tax, inv.discount, inv.paidAmount, inv.status, inv.notes]
+            'INSERT INTO invoices (invoice_number, client_id, invoice_date, total_amount, tax_amount, discount_amount, paid_amount, status, notes, deliverables) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [inv.number, clientID, inv.date, inv.total, inv.tax, inv.discount, inv.paidAmount, inv.status, inv.notes, inv.deliverables || '']
         );
         const invoiceID = result.insertId;
 
@@ -362,7 +362,6 @@ app.put('/api/invoices/:id', async (req, res) => {
             const [clients] = await connection.query('SELECT id FROM clients WHERE name = ?', [inv.client.name]);
             if (clients.length > 0) {
                 clientID = clients[0].id;
-                // Update client info
                 await connection.query(
                     'UPDATE clients SET phone = ?, email = ?, address = ?, gst_number = ? WHERE id = ?',
                     [inv.client.phone || null, inv.client.email || null, inv.client.address || null, inv.client.gstin || null, clientID]
@@ -378,8 +377,8 @@ app.put('/api/invoices/:id', async (req, res) => {
 
         // 2. Update Invoice
         await connection.query(
-            'UPDATE invoices SET invoice_number = ?, client_id = ?, invoice_date = ?, total_amount = ?, tax_amount = ?, discount_amount = ?, paid_amount = ?, status = ?, notes = ? WHERE id = ?',
-            [inv.number, clientID, inv.date, inv.total, inv.tax, inv.discount, inv.paidAmount, inv.status, inv.notes, id]
+            'UPDATE invoices SET invoice_number = ?, client_id = ?, invoice_date = ?, total_amount = ?, tax_amount = ?, discount_amount = ?, paid_amount = ?, status = ?, notes = ?, deliverables = ? WHERE id = ?',
+            [inv.number, clientID, inv.date, inv.total, inv.tax, inv.discount, inv.paidAmount, inv.status, inv.notes, inv.deliverables || '', id]
         );
 
         // 3. Update Items (Delete and re-insert)
