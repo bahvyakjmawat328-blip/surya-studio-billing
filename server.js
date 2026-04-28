@@ -394,7 +394,7 @@ app.put('/api/invoices/:id', async (req, res) => {
     } catch (err) {
         await connection.rollback();
         console.error('Invoice PUT Error:', err);
-        res.status(500).json({ error: 'Database error' });
+        res.status(500).json({ error: err.code === 'ER_DUP_ENTRY' ? 'Invoice number already exists' : 'Database error' });
     } finally {
         connection.release();
     }
