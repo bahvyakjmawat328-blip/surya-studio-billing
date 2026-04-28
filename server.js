@@ -313,7 +313,6 @@ app.post('/api/invoices', async (req, res) => {
             const [clients] = await connection.query('SELECT id FROM clients WHERE name = ?', [inv.client.name]);
             if (clients.length > 0) {
                 clientID = clients[0].id;
-                // Optionally update client data here
             } else {
                 const [newClient] = await connection.query(
                     'INSERT INTO clients (name, phone, email, address, gst_number) VALUES (?, ?, ?, ?, ?)',
@@ -343,10 +342,72 @@ app.post('/api/invoices', async (req, res) => {
         res.status(201).json({ id: invoiceID });
     } catch (err) {
         await connection.rollback();
-        console.error(err);
+        console.error('Invoice POST Error:', err);
+        res.status(500).json({ error: err.code === 'ER_DUP_ENTRY' ? 'Invoice number already exists' : 'Database error' });
+    } finally {
+        connection.release();
+    }
+});
+
+app.put('/api/invoices/:id', async (req, res) => {
+    const { id } = req.params;
+    const inv = req.body;
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        // 1. Update Client (or find existing)
+        let clientID = null;
+        if (inv.client && inv.client.name) {
+            const [clients] = await connection.query('SELECT id FROM clients WHERE name = ?', [inv.client.name]);
+            if (clients.length > 0) {
+                clientID = clients[0].id;
+                // Update client info
+                await connection.query(
+                    'UPDATE clients SET phone = ?, email = ?, address = ?, gst_number = ? WHERE id = ?',
+                    [inv.client.phone || null, inv.client.email || null, inv.client.address || null, inv.client.gstin || null, clientID]
+                );
+            } else {
+                const [newClient] = await connection.query(
+                    'INSERT INTO clients (name, phone, email, address, gst_number) VALUES (?, ?, ?, ?, ?)',
+                    [inv.client.name, inv.client.phone || null, inv.client.email || null, inv.client.address || null, inv.client.gstin || null]
+                );
+                clientID = newClient.insertId;
+            }
+        }
+
+        // 2. Update Invoice
+        await connection.query(
+            'UPDATE invoices SET invoice_number = ?, client_id = ?, invoice_date = ?, total_amount = ?, tax_amount = ?, discount_amount = ?, paid_amount = ?, status = ?, notes = ? WHERE id = ?',
+            [inv.number, clientID, inv.date, inv.total, inv.tax, inv.discount, inv.paidAmount, inv.status, inv.notes, id]
+        );
+
+        // 3. Update Items (Delete and re-insert)
+        await connection.query('DELETE FROM invoice_items WHERE invoice_id = ?', [id]);
+        if (inv.items && inv.items.length > 0) {
+            const itemValues = inv.items.map(item => [id, item.description, item.rate, item.qty, (item.rate * item.qty)]);
+            await connection.query('INSERT INTO invoice_items (invoice_id, description, rate, qty, amount) VALUES ?', [itemValues]);
+        }
+
+        await connection.commit();
+        res.json({ success: true });
+    } catch (err) {
+        await connection.rollback();
+        console.error('Invoice PUT Error:', err);
         res.status(500).json({ error: 'Database error' });
     } finally {
         connection.release();
+    }
+});
+
+app.delete('/api/invoices/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query('DELETE FROM invoices WHERE id = ?', [id]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Invoice DELETE Error:', err);
+        res.status(500).json({ error: 'Database error' });
     }
 });
 
