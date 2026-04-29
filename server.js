@@ -560,11 +560,11 @@ app.get('/api/team', async (req, res) => {
 });
 
 app.post('/api/team', async (req, res) => {
-  const { name, role, phone, email, image_url, daily_rate } = req.body;
+  const { name, role, phone, email, image_url, daily_rate, status } = req.body;
   try {
     const [result] = await pool.query(
-      'INSERT INTO team_members (name, role, phone, email, image_url, daily_rate) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, role, phone, email, image_url, daily_rate]
+      'INSERT INTO team_members (name, role, phone, email, image_url, daily_rate, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, role, phone, email, image_url || '', daily_rate || 0, status || 'Active']
     );
     res.status(201).json({ id: result.insertId });
   } catch (err) {
@@ -579,7 +579,7 @@ app.put('/api/team/:id', async (req, res) => {
   try {
     await pool.query(
       'UPDATE team_members SET name = ?, role = ?, phone = ?, email = ?, image_url = ?, daily_rate = ?, status = ? WHERE id = ?',
-      [name, role, phone, email, image_url, daily_rate, status, id]
+      [name, role, phone, email, image_url || '', daily_rate || 0, status || 'Active', id]
     );
     res.json({ success: true });
   } catch (err) {
