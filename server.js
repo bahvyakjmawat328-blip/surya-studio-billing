@@ -109,6 +109,12 @@ app.get('/api/all-projects', async (req, res) => {
           for (let p of projects) {
               p.selectedServices = servicesMap[p.id] || [];
               p.assignedTeam = assignmentsMap[p.id] || [];
+              p.date = p.event_date; // Map for frontend
+              p.daysOfProgram = p.days_of_program;
+              p.teamPrice = p.team_price;
+              p.editorPrice = p.editor_price;
+              p.albumPrice = p.album_price;
+              p.startTime = p.start_time;
           }
       }
   
@@ -150,6 +156,12 @@ app.get('/api/projects/:clientName', async (req, res) => {
         for (let p of projects) {
             p.selectedServices = servicesMap[p.id] || [];
             p.assignedTeam = assignmentsMap[p.id] || [];
+            p.date = p.event_date; // Map for frontend
+            p.daysOfProgram = p.days_of_program;
+            p.teamPrice = p.team_price;
+            p.editorPrice = p.editor_price;
+            p.albumPrice = p.album_price;
+            p.startTime = p.start_time;
         }
     }
 
@@ -392,6 +404,17 @@ app.get('/api/invoices', async (req, res) => {
             for (let inv of rows) {
                 inv.items = itemsMap[inv.id] || [];
                 inv.client = { name: inv.clientName || 'Unknown' };
+                // Map db columns to frontend expectations
+                inv.number = inv.invoice_number;
+                inv.date = inv.invoice_date;
+                inv.amount = inv.total_amount;
+                inv.total = inv.total_amount;
+                inv.taxRate = inv.tax_amount;
+                inv.tax = inv.tax_amount;
+                inv.discount = inv.discount_amount;
+                inv.amountPaid = inv.paid_amount;
+                inv.paidAmount = inv.paid_amount;
+                
                 delete inv.clientName;
             }
         }
