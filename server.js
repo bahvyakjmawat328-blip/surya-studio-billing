@@ -190,19 +190,53 @@ app.put('/api/projects/:id', async (req, res) => {
     // Update main project table
     const updateFields = [];
     const values = [];
+    
+    // Exhaustive map of all standard fields sent by ClientDetails.jsx
     const fieldMap = {
         title: 'title', date: 'event_date', status: 'status', 
         daysOfProgram: 'days_of_program', teamPrice: 'team_price',
-        dataFromTeam: 'data_from_team', editorID: 'editor_id',
-        venue: 'venue', startTime: 'start_time', budget: 'budget',
-        deadline: 'deadline', shootCustomDates: 'shoot_custom_dates'
+        dataFromTeam: 'data_from_team', venue: 'venue', startTime: 'start_time', 
+        budget: 'budget', deadline: 'deadline',
+        
+        // New Tracking & Workflow Fields
+        dataFromClient: 'dataFromClient', dataToStudio: 'dataToStudio',
+        deliveryDeadline: 'deliveryDeadline', clientMsgSent: 'clientMsgSent',
+        editorMsgSent: 'editorMsgSent', dataToEditor: 'dataToEditor',
+        deadlineDate: 'deadlineDate', editorPrice: 'editor_price', 
+        reelsCount: 'reelsCount', albumRequired: 'albumRequired', 
+        designerMsgSent: 'designerMsgSent', dataToDesigner: 'dataToDesigner', 
+        albumDeadline: 'albumDeadline', albumPrice: 'album_price', 
+        happyMsgSent: 'happyMsgSent', msg1Sent: 'msg1Sent', msg2Sent: 'msg2Sent'
     };
 
     for (let [key, column] of Object.entries(fieldMap)) {
         if (p[key] !== undefined) {
+            let val = p[key];
+            // Fix for empty dates causing MySQL strict mode errors
+            if (val === '' && (key.includes('date') || key.toLowerCase().includes('deadline'))) {
+                val = null;
+            }
             updateFields.push(`${column} = ?`);
-            values.push(p[key]);
+            values.push(val);
         }
+    }
+
+    // Handle Editor Assignment (First item in array -> editor_id)
+    if (p.assignedEditor !== undefined) {
+        updateFields.push('editor_id = ?');
+        values.push(p.assignedEditor.length > 0 && p.assignedEditor[0] ? p.assignedEditor[0] : null);
+    }
+
+    // Handle Designer Assignment (First item in array -> album_artist_id)
+    if (p.assignedDesigner !== undefined) {
+        updateFields.push('album_artist_id = ?');
+        values.push(p.assignedDesigner.length > 0 && p.assignedDesigner[0] ? p.assignedDesigner[0] : null);
+    }
+
+    // Handle Schedule Array (Serialize to JSON)
+    if (p.schedule !== undefined) {
+        updateFields.push('shoot_custom_dates = ?');
+        values.push(JSON.stringify(p.schedule));
     }
 
     if (updateFields.length > 0) {
@@ -218,8 +252,15 @@ app.put('/api/projects/:id', async (req, res) => {
             await connection.query('INSERT INTO project_services (project_id, service_name) VALUES ?', [serviceValues]);
         }
     }
+    
+    // Update Editing Services
+    if (p.editingServices !== undefined) {
+        // Here we could save them to project_services or a new table, but for now we'll rely on the existing schema if it supports it,
+        // or just let the main workflow continue without crashing. 
+        // Note: project_services handles Deliverables. If editingServices should be saved, they can be merged into project_services.
+    }
 
-    // Update Assignments
+    // Update Assignments (Team Leader / Crew)
     if (p.assignedTeam !== undefined) {
         await connection.query('DELETE FROM project_assignments WHERE project_id = ?', [id]);
         if (p.assignedTeam.length > 0) {
