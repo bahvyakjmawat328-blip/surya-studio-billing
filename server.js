@@ -70,6 +70,24 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+// Auto-update schema for team members
+(async () => {
+  try {
+    const cols = await pool.query('SHOW COLUMNS FROM team_members');
+    const existing = cols[0].map(c => c.Field);
+    
+    if (!existing.includes('is_leader')) await pool.query('ALTER TABLE team_members ADD COLUMN is_leader BOOLEAN DEFAULT FALSE');
+    if (!existing.includes('leader_id')) await pool.query('ALTER TABLE team_members ADD COLUMN leader_id INT');
+    if (!existing.includes('bank_name')) await pool.query('ALTER TABLE team_members ADD COLUMN bank_name VARCHAR(255)');
+    if (!existing.includes('account_number')) await pool.query('ALTER TABLE team_members ADD COLUMN account_number VARCHAR(255)');
+    if (!existing.includes('ifsc_code')) await pool.query('ALTER TABLE team_members ADD COLUMN ifsc_code VARCHAR(100)');
+    if (!existing.includes('upi_id')) await pool.query('ALTER TABLE team_members ADD COLUMN upi_id VARCHAR(100)');
+    console.log('✅ Team members table schema verified/updated');
+  } catch (err) {
+    console.error('Schema update error:', err.message);
+  }
+})();
+
 // 👤 1. GET ALL CLIENTS
 app.get('/api/clients', async (req, res) => {
   try {
@@ -551,7 +569,7 @@ app.delete('/api/invoices/:id', async (req, res) => {
 // 👥 8. TEAM MEMBERS
 app.get('/api/team', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT *, image_url as image FROM team_members ORDER BY name ASC');
+    const [rows] = await pool.query('SELECT *, image_url as image, is_leader as isLeader, leader_id as leaderId, bank_name as bankName, account_number as accountNumber, ifsc_code as ifscCode, upi_id as upiId FROM team_members ORDER BY name ASC');
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -560,11 +578,11 @@ app.get('/api/team', async (req, res) => {
 });
 
 app.post('/api/team', async (req, res) => {
-  const { name, role, phone, email, image_url, daily_rate, status } = req.body;
+  const { name, role, phone, email, image_url, daily_rate, status, isLeader, leaderId, bankName, accountNumber, ifscCode, upiId } = req.body;
   try {
     const [result] = await pool.query(
-      'INSERT INTO team_members (name, role, phone, email, image_url, daily_rate, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, role, phone, email, image_url || '', daily_rate || 0, status || 'Active']
+      'INSERT INTO team_members (name, role, phone, email, image_url, daily_rate, status, is_leader, leader_id, bank_name, account_number, ifsc_code, upi_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, role, phone, email, image_url || '', daily_rate || 0, status || 'Active', isLeader ? 1 : 0, leaderId || null, bankName || '', accountNumber || '', ifscCode || '', upiId || '']
     );
     res.status(201).json({ id: result.insertId });
   } catch (err) {
@@ -575,11 +593,11 @@ app.post('/api/team', async (req, res) => {
 
 app.put('/api/team/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, role, phone, email, image_url, daily_rate, status } = req.body;
+  const { name, role, phone, email, image_url, daily_rate, status, isLeader, leaderId, bankName, accountNumber, ifscCode, upiId } = req.body;
   try {
     await pool.query(
-      'UPDATE team_members SET name = ?, role = ?, phone = ?, email = ?, image_url = ?, daily_rate = ?, status = ? WHERE id = ?',
-      [name, role, phone, email, image_url || '', daily_rate || 0, status || 'Active', id]
+      'UPDATE team_members SET name = ?, role = ?, phone = ?, email = ?, image_url = ?, daily_rate = ?, status = ?, is_leader = ?, leader_id = ?, bank_name = ?, account_number = ?, ifsc_code = ?, upi_id = ? WHERE id = ?',
+      [name, role, phone, email, image_url || '', daily_rate || 0, status || 'Active', isLeader ? 1 : 0, leaderId || null, bankName || '', accountNumber || '', ifscCode || '', upiId || '', id]
     );
     res.json({ success: true });
   } catch (err) {
