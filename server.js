@@ -404,11 +404,25 @@ app.get('/api/invoices', async (req, res) => {
             for (let inv of rows) {
                 inv.items = itemsMap[inv.id] || [];
                 inv.client = { name: inv.clientName || 'Unknown' };
+                
+                // Fix double prefix for invoice number
+                let num = inv.invoice_number || '';
+                if (num.startsWith('#INV-')) num = num.substring(5);
+                else if (num.startsWith('INV-')) num = num.substring(4);
+
+                // Compute total dynamically if it is null or 0 in DB
+                let computedTotal = parseFloat(inv.total_amount) || 0;
+                if (!computedTotal && inv.items.length > 0) {
+                    const sub = inv.items.reduce((s, i) => s + (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0), 0);
+                    const tax = sub * ((parseFloat(inv.tax_amount) || 0) / 100);
+                    computedTotal = sub + tax;
+                }
+
                 // Map db columns to frontend expectations
-                inv.number = inv.invoice_number;
+                inv.number = num;
                 inv.date = inv.invoice_date;
-                inv.amount = inv.total_amount;
-                inv.total = inv.total_amount;
+                inv.amount = computedTotal;
+                inv.total = computedTotal;
                 inv.taxRate = inv.tax_amount;
                 inv.tax = inv.tax_amount;
                 inv.discount = inv.discount_amount;
