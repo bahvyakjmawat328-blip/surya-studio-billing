@@ -212,10 +212,16 @@ app.put('/api/projects/:id', async (req, res) => {
     for (let [key, column] of Object.entries(fieldMap)) {
         if (p[key] !== undefined) {
             let val = p[key];
-            // Fix for empty dates causing MySQL strict mode errors
-            if (val === '' && (key.includes('date') || key.toLowerCase().includes('deadline'))) {
-                val = null;
+            
+            // Fix for empty strings causing MySQL strict mode errors
+            if (val === '') {
+                if (key.includes('date') || key.toLowerCase().includes('deadline') || key.includes('Date')) {
+                    val = null; // Empty dates should be NULL
+                } else if (key.toLowerCase().includes('price') || key === 'budget' || key === 'reelsCount' || key === 'daysOfProgram') {
+                    val = 0; // Empty numeric fields should be 0
+                }
             }
+
             updateFields.push(`${column} = ?`);
             values.push(val);
         }
