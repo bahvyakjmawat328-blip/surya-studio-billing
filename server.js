@@ -551,7 +551,7 @@ app.delete('/api/invoices/:id', async (req, res) => {
 // 👥 8. TEAM MEMBERS
 app.get('/api/team', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM team_members ORDER BY name ASC');
+    const [rows] = await pool.query('SELECT *, image_url as image FROM team_members ORDER BY name ASC');
     res.json(rows);
   } catch (err) {
     console.error(err);
