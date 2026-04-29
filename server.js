@@ -89,12 +89,27 @@ app.get('/api/all-projects', async (req, res) => {
         JOIN clients c ON p.client_id = c.id 
         ORDER BY p.event_date DESC`);
       
-      for (let p of projects) {
-          const [services] = await pool.query('SELECT service_name FROM project_services WHERE project_id = ?', [p.id]);
-          p.selectedServices = services.map(s => s.service_name);
+      if (projects.length > 0) {
+          const projectIds = projects.map(p => p.id);
           
-          const [assignments] = await pool.query('SELECT member_id FROM project_assignments WHERE project_id = ?', [p.id]);
-          p.assignedTeam = assignments.map(a => a.member_id.toString());
+          const [allServices] = await pool.query('SELECT project_id, service_name FROM project_services WHERE project_id IN (?)', [projectIds]);
+          const servicesMap = {};
+          allServices.forEach(s => {
+            if (!servicesMap[s.project_id]) servicesMap[s.project_id] = [];
+            servicesMap[s.project_id].push(s.service_name);
+          });
+          
+          const [allAssignments] = await pool.query('SELECT project_id, member_id FROM project_assignments WHERE project_id IN (?)', [projectIds]);
+          const assignmentsMap = {};
+          allAssignments.forEach(a => {
+            if (!assignmentsMap[a.project_id]) assignmentsMap[a.project_id] = [];
+            assignmentsMap[a.project_id].push(a.member_id.toString());
+          });
+
+          for (let p of projects) {
+              p.selectedServices = servicesMap[p.id] || [];
+              p.assignedTeam = assignmentsMap[p.id] || [];
+          }
       }
   
       res.json(projects);
@@ -115,12 +130,27 @@ app.get('/api/projects/:clientName', async (req, res) => {
       WHERE c.name = ?`, [clientName]);
     
     // Fetch services and assignments for each project
-    for (let p of projects) {
-        const [services] = await pool.query('SELECT service_name FROM project_services WHERE project_id = ?', [p.id]);
-        p.selectedServices = services.map(s => s.service_name);
+    if (projects.length > 0) {
+        const projectIds = projects.map(p => p.id);
         
-        const [assignments] = await pool.query('SELECT member_id FROM project_assignments WHERE project_id = ?', [p.id]);
-        p.assignedTeam = assignments.map(a => a.member_id.toString());
+        const [allServices] = await pool.query('SELECT project_id, service_name FROM project_services WHERE project_id IN (?)', [projectIds]);
+        const servicesMap = {};
+        allServices.forEach(s => {
+          if (!servicesMap[s.project_id]) servicesMap[s.project_id] = [];
+          servicesMap[s.project_id].push(s.service_name);
+        });
+        
+        const [allAssignments] = await pool.query('SELECT project_id, member_id FROM project_assignments WHERE project_id IN (?)', [projectIds]);
+        const assignmentsMap = {};
+        allAssignments.forEach(a => {
+          if (!assignmentsMap[a.project_id]) assignmentsMap[a.project_id] = [];
+          assignmentsMap[a.project_id].push(a.member_id.toString());
+        });
+
+        for (let p of projects) {
+            p.selectedServices = servicesMap[p.id] || [];
+            p.assignedTeam = assignmentsMap[p.id] || [];
+        }
     }
 
     res.json(projects);
@@ -342,14 +372,28 @@ app.delete('/api/clients/:id', async (req, res) => {
 // 🧾 7. INVOICES
 app.get('/api/invoices', async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM invoices ORDER BY invoice_date DESC');
-        for (let inv of rows) {
-            const [items] = await pool.query('SELECT * FROM invoice_items WHERE invoice_id = ?', [inv.id]);
-            inv.items = items;
+        const [rows] = await pool.query(`
+            SELECT i.*, c.name as clientName 
+            FROM invoices i 
+            LEFT JOIN clients c ON i.client_id = c.id 
+            ORDER BY i.invoice_date DESC
+        `);
+        
+        if (rows.length > 0) {
+            const invoiceIds = rows.map(inv => inv.id);
+            const [allItems] = await pool.query('SELECT * FROM invoice_items WHERE invoice_id IN (?)', [invoiceIds]);
             
-            // Get client name for frontend compatibility
-            const [clients] = await pool.query('SELECT name FROM clients WHERE id = ?', [inv.client_id]);
-            inv.client = { name: clients[0]?.name || 'Unknown' };
+            const itemsMap = {};
+            allItems.forEach(item => {
+                if (!itemsMap[item.invoice_id]) itemsMap[item.invoice_id] = [];
+                itemsMap[item.invoice_id].push(item);
+            });
+
+            for (let inv of rows) {
+                inv.items = itemsMap[inv.id] || [];
+                inv.client = { name: inv.clientName || 'Unknown' };
+                delete inv.clientName;
+            }
         }
         res.json(rows);
     } catch (err) {
