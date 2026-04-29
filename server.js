@@ -142,6 +142,16 @@ app.post('/api/projects', async (req, res) => {
     if (clients.length === 0) throw new Error('Client not found');
     const clientID = clients[0].id;
 
+    // 🛑 Prevent Duplicates (Check if same title/date exists for this client)
+    const [existing] = await connection.query(
+      'SELECT id FROM projects WHERE client_id = ? AND title = ? AND event_date = ?',
+      [clientID, p.title, p.date]
+    );
+    if (existing.length > 0) {
+      await connection.rollback();
+      return res.status(200).json({ success: true, id: existing[0].id, message: 'Project already exists' });
+    }
+
     // Insert Project
     const [result] = await connection.query(
       `INSERT INTO projects (
