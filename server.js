@@ -256,8 +256,8 @@ app.post('/api/clients', async (req, res) => {
     const { name, phone, email, address, notes, category } = req.body;
     try {
         const [result] = await pool.query(
-            'INSERT INTO clients (name, phone, email, address, notes) VALUES (?, ?, ?, ?, ?)',
-            [name, phone, email, address, notes]
+            'INSERT INTO clients (name, phone, email, address, notes, category) VALUES (?, ?, ?, ?, ?, ?)',
+            [name, phone, email, address, notes, category || 'Other']
         );
         res.status(201).json({ id: result.insertId });
     } catch (err) {
@@ -268,11 +268,11 @@ app.post('/api/clients', async (req, res) => {
 
 app.put('/api/clients/:id', async (req, res) => {
     const { id } = req.params;
-    const { name, phone, email, address, notes } = req.body;
+    const { name, phone, email, address, notes, category } = req.body;
     try {
         await pool.query(
-            'UPDATE clients SET name = ?, phone = ?, email = ?, address = ?, notes = ? WHERE id = ?',
-            [name, phone, email, address, notes, id]
+            'UPDATE clients SET name = ?, phone = ?, email = ?, address = ?, notes = ?, category = ? WHERE id = ?',
+            [name, phone, email, address, notes, category, id]
         );
         res.json({ success: true });
     } catch (err) {
@@ -519,6 +519,19 @@ app.delete('/api/notes/:id', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// 🧹 10. ADMIN CLEANUP (Temporary)
+app.get('/api/admin/master-cleanup', async (req, res) => {
+    try {
+        // Remove empty dates
+        await pool.query('DELETE FROM projects WHERE event_date IS NULL OR event_date = "" OR event_date = "0000-00-00"');
+        // Remove duplicates
+        await pool.query('DELETE p1 FROM projects p1 INNER JOIN projects p2 WHERE p1.id > p2.id AND p1.client_id = p2.client_id AND p1.title = p2.title AND p1.event_date = p2.event_date');
+        res.json({ success: true, message: 'Database cleaned!' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
