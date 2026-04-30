@@ -70,19 +70,56 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-// Auto-update schema for team members
+// Auto-update schema for team members and projects
 (async () => {
   try {
-    const cols = await pool.query('SHOW COLUMNS FROM team_members');
-    const existing = cols[0].map(c => c.Field);
+    // 1. Update team_members
+    const [tmCols] = await pool.query('SHOW COLUMNS FROM team_members');
+    const tmExisting = tmCols.map(c => c.Field);
+    if (!tmExisting.includes('is_leader')) await pool.query('ALTER TABLE team_members ADD COLUMN is_leader BOOLEAN DEFAULT FALSE');
+    if (!tmExisting.includes('leader_id')) await pool.query('ALTER TABLE team_members ADD COLUMN leader_id INT');
+    if (!tmExisting.includes('bank_name')) await pool.query('ALTER TABLE team_members ADD COLUMN bank_name VARCHAR(255)');
+    if (!tmExisting.includes('account_number')) await pool.query('ALTER TABLE team_members ADD COLUMN account_number VARCHAR(255)');
+    if (!tmExisting.includes('ifsc_code')) await pool.query('ALTER TABLE team_members ADD COLUMN ifsc_code VARCHAR(100)');
+    if (!tmExisting.includes('upi_id')) await pool.query('ALTER TABLE team_members ADD COLUMN upi_id VARCHAR(100)');
+
+    // 2. Update projects
+    const [pCols] = await pool.query('SHOW COLUMNS FROM projects');
+    const pExisting = pCols.map(c => c.Field);
     
-    if (!existing.includes('is_leader')) await pool.query('ALTER TABLE team_members ADD COLUMN is_leader BOOLEAN DEFAULT FALSE');
-    if (!existing.includes('leader_id')) await pool.query('ALTER TABLE team_members ADD COLUMN leader_id INT');
-    if (!existing.includes('bank_name')) await pool.query('ALTER TABLE team_members ADD COLUMN bank_name VARCHAR(255)');
-    if (!existing.includes('account_number')) await pool.query('ALTER TABLE team_members ADD COLUMN account_number VARCHAR(255)');
-    if (!existing.includes('ifsc_code')) await pool.query('ALTER TABLE team_members ADD COLUMN ifsc_code VARCHAR(100)');
-    if (!existing.includes('upi_id')) await pool.query('ALTER TABLE team_members ADD COLUMN upi_id VARCHAR(100)');
-    console.log('✅ Team members table schema verified/updated');
+    const newCols = [
+        ['dataFromClient', 'VARCHAR(50) DEFAULT "Pending"'],
+        ['dataToStudio', 'VARCHAR(50) DEFAULT "Pending"'],
+        ['deliveryDeadline', 'DATE'],
+        ['clientMsgSent', 'BOOLEAN DEFAULT FALSE'],
+        ['editorMsgSent', 'BOOLEAN DEFAULT FALSE'],
+        ['deadlineDate', 'DATE'],
+        ['reelsCount', 'INT DEFAULT 0'],
+        ['albumRequired', 'BOOLEAN DEFAULT FALSE'],
+        ['designerMsgSent', 'BOOLEAN DEFAULT FALSE'],
+        ['dataToDesigner', 'VARCHAR(50) DEFAULT "Pending"'],
+        ['albumDeadline', 'DATE'],
+        ['happyMsgSent', 'BOOLEAN DEFAULT FALSE'],
+        ['msg1Sent', 'BOOLEAN DEFAULT FALSE'],
+        ['msg2Sent', 'BOOLEAN DEFAULT FALSE'],
+        ['shoot_custom_dates', 'TEXT'],
+        ['editing_services', 'TEXT'],
+        ['editor_id', 'INT'],
+        ['album_artist_id', 'INT'],
+        ['team_price', 'DECIMAL(10,2) DEFAULT 0'],
+        ['editor_price', 'DECIMAL(10,2) DEFAULT 0'],
+        ['album_price', 'DECIMAL(10,2) DEFAULT 0'],
+        ['data_to_editor', 'VARCHAR(50) DEFAULT "Pending"']
+    ];
+
+    for (const [col, type] of newCols) {
+        if (!pExisting.includes(col)) {
+            await pool.query(`ALTER TABLE projects ADD COLUMN ${col} ${type}`);
+            console.log(`✅ Column ${col} added to projects`);
+        }
+    }
+
+    console.log('✅ Database schema verified/updated');
   } catch (err) {
     console.error('Schema update error:', err.message);
   }
@@ -270,15 +307,26 @@ app.put('/api/projects/:id', async (req, res) => {
         dataFromTeam: 'data_from_team', venue: 'venue', startTime: 'start_time', 
         budget: 'budget', deadline: 'deadline',
         
-        // New Tracking & Workflow Fields
-        dataFromClient: 'dataFromClient', dataToStudio: 'dataToStudio',
-        deliveryDeadline: 'deliveryDeadline', clientMsgSent: 'clientMsgSent',
-        editorMsgSent: 'editorMsgSent', dataToEditor: 'data_to_editor',
-        deadlineDate: 'deadlineDate', editorPrice: 'editor_price', 
-        reelsCount: 'reelsCount', albumRequired: 'albumRequired', 
-        designerMsgSent: 'designerMsgSent', dataToDesigner: 'dataToDesigner', 
-        albumDeadline: 'albumDeadline', albumPrice: 'album_price', 
-        happyMsgSent: 'happyMsgSent', msg1Sent: 'msg1Sent', msg2Sent: 'msg2Sent'
+        // Workflow & Deadline Tracking Fields
+        dataFromClient: 'dataFromClient', 
+        dataToStudio: 'dataToStudio',
+        deliveryDeadline: 'deliveryDeadline', 
+        clientMsgSent: 'clientMsgSent',
+        editorMsgSent: 'editorMsgSent', 
+        dataToEditor: 'data_to_editor',
+        deadlineDate: 'deadlineDate', 
+        editorPrice: 'editor_price', 
+        reelsCount: 'reelsCount', 
+        albumRequired: 'albumRequired', 
+        designerMsgSent: 'designerMsgSent', 
+        dataToDesigner: 'dataToDesigner', 
+        albumDeadline: 'albumDeadline', 
+        albumPrice: 'album_price', 
+        happyMsgSent: 'happyMsgSent', 
+        msg1Sent: 'msg1Sent', 
+        msg2Sent: 'msg2Sent',
+        shoot_custom_dates: 'shoot_custom_dates',
+        editing_services: 'editing_services'
     };
 
     for (let [key, column] of Object.entries(fieldMap)) {
