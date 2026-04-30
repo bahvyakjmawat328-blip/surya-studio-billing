@@ -133,6 +133,8 @@ app.get('/api/all-projects', async (req, res) => {
               p.editorPrice = p.editor_price;
               p.albumPrice = p.album_price;
               p.startTime = p.start_time;
+              try { p.schedule = p.shoot_custom_dates ? JSON.parse(p.shoot_custom_dates) : []; } catch(e) { p.schedule = []; }
+              try { p.editingServices = p.editing_services ? JSON.parse(p.editing_services) : []; } catch(e) { p.editingServices = []; }
           }
       }
   
@@ -180,6 +182,8 @@ app.get('/api/projects/:clientName', async (req, res) => {
             p.editorPrice = p.editor_price;
             p.albumPrice = p.album_price;
             p.startTime = p.start_time;
+            try { p.schedule = p.shoot_custom_dates ? JSON.parse(p.shoot_custom_dates) : []; } catch(e) { p.schedule = []; }
+            try { p.editingServices = p.editing_services ? JSON.parse(p.editing_services) : []; } catch(e) { p.editingServices = []; }
         }
     }
 
@@ -261,7 +265,7 @@ app.put('/api/projects/:id', async (req, res) => {
         // New Tracking & Workflow Fields
         dataFromClient: 'dataFromClient', dataToStudio: 'dataToStudio',
         deliveryDeadline: 'deliveryDeadline', clientMsgSent: 'clientMsgSent',
-        editorMsgSent: 'editorMsgSent', dataToEditor: 'dataToEditor',
+        editorMsgSent: 'editorMsgSent', dataToEditor: 'data_to_editor',
         deadlineDate: 'deadlineDate', editorPrice: 'editor_price', 
         reelsCount: 'reelsCount', albumRequired: 'albumRequired', 
         designerMsgSent: 'designerMsgSent', dataToDesigner: 'dataToDesigner', 
@@ -321,9 +325,8 @@ app.put('/api/projects/:id', async (req, res) => {
     
     // Update Editing Services
     if (p.editingServices !== undefined) {
-        // Here we could save them to project_services or a new table, but for now we'll rely on the existing schema if it supports it,
-        // or just let the main workflow continue without crashing. 
-        // Note: project_services handles Deliverables. If editingServices should be saved, they can be merged into project_services.
+        updateFields.push('editing_services = ?');
+        values.push(JSON.stringify(p.editingServices));
     }
 
     // Update Assignments (Team Leader / Crew)
