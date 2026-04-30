@@ -15,8 +15,8 @@ const seedAdmin = async () => {
   });
 
   try {
-    const username = 'admin';
-    const password = 'password123'; // ⚠️ You should change this after login!
+    const username = 'Rahuljajora@9660';
+    const password = 'Anjana@1997'; 
     
     console.log(`Checking for existing user: ${username}...`);
     const [existing] = await pool.query('SELECT id FROM users WHERE username = ?', [username]);
