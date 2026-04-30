@@ -337,12 +337,15 @@ app.put('/api/projects/:id', async (req, res) => {
             let val = p[key];
             
             // Fix for empty strings causing MySQL strict mode errors
-            if (val === '') {
+            if (val === '' || val === undefined) {
                 if (key.includes('date') || key.toLowerCase().includes('deadline') || key.includes('Date')) {
-                    val = null; // Empty dates should be NULL
+                    val = null;
                 } else if (key.toLowerCase().includes('price') || key === 'budget' || key === 'reelsCount' || key === 'daysOfProgram') {
-                    val = 0; // Empty numeric fields should be 0
+                    val = 0;
                 }
+            } else if (key.includes('date') || key.toLowerCase().includes('deadline') || key.includes('Date')) {
+                // Ensure YYYY-MM-DD format
+                if (val && val.includes('T')) val = val.split('T')[0];
             }
 
             updateFields.push(`${column} = ?`);
@@ -376,7 +379,8 @@ app.put('/api/projects/:id', async (req, res) => {
     if (updateFields.length > 0) {
         values.push(id);
         console.log('🚀 SQL Update Query:', `UPDATE projects SET ${updateFields.join(', ')} WHERE id = ?`, values);
-        await connection.query(`UPDATE projects SET ${updateFields.join(', ')} WHERE id = ?`, values);
+        const [result] = await connection.query(`UPDATE projects SET ${updateFields.join(', ')} WHERE id = ?`, values);
+        console.log('✅ Update Result:', result);
     }
 
     // Update Services (delete and re-insert for simplicity)
