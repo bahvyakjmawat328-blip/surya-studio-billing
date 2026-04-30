@@ -133,6 +133,10 @@ app.get('/api/all-projects', async (req, res) => {
               p.editorPrice = p.editor_price;
               p.albumPrice = p.album_price;
               p.startTime = p.start_time;
+              p.dataFromTeam = p.data_from_team;
+              p.dataToEditor = p.data_to_editor;
+              p.assignedEditor = p.editor_id ? [String(p.editor_id)] : [];
+              p.assignedDesigner = p.album_artist_id ? [String(p.album_artist_id)] : [];
               try { p.schedule = p.shoot_custom_dates ? JSON.parse(p.shoot_custom_dates) : []; } catch(e) { p.schedule = []; }
               try { p.editingServices = p.editing_services ? JSON.parse(p.editing_services) : []; } catch(e) { p.editingServices = []; }
           }
@@ -182,6 +186,10 @@ app.get('/api/projects/:clientName', async (req, res) => {
             p.editorPrice = p.editor_price;
             p.albumPrice = p.album_price;
             p.startTime = p.start_time;
+            p.dataFromTeam = p.data_from_team;
+            p.dataToEditor = p.data_to_editor;
+            p.assignedEditor = p.editor_id ? [String(p.editor_id)] : [];
+            p.assignedDesigner = p.album_artist_id ? [String(p.album_artist_id)] : [];
             try { p.schedule = p.shoot_custom_dates ? JSON.parse(p.shoot_custom_dates) : []; } catch(e) { p.schedule = []; }
             try { p.editingServices = p.editing_services ? JSON.parse(p.editing_services) : []; } catch(e) { p.editingServices = []; }
         }
