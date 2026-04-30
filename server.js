@@ -317,6 +317,11 @@ app.put('/api/projects/:id', async (req, res) => {
         values.push(JSON.stringify(p.schedule));
     }
 
+    if (p.editingServices !== undefined) {
+        updateFields.push('editing_services = ?');
+        values.push(JSON.stringify(p.editingServices));
+    }
+
     if (updateFields.length > 0) {
         values.push(id);
         await connection.query(`UPDATE projects SET ${updateFields.join(', ')} WHERE id = ?`, values);
@@ -331,11 +336,7 @@ app.put('/api/projects/:id', async (req, res) => {
         }
     }
     
-    // Update Editing Services
-    if (p.editingServices !== undefined) {
-        updateFields.push('editing_services = ?');
-        values.push(JSON.stringify(p.editingServices));
-    }
+
 
     // Update Assignments (Team Leader / Crew)
     if (p.assignedTeam !== undefined) {
