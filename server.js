@@ -295,6 +295,7 @@ app.put('/api/projects/:id', async (req, res) => {
   
   try {
     await connection.beginTransaction();
+    console.log(`📝 Updating Project ${id} with:`, p);
 
     // Update main project table
     const updateFields = [];
@@ -324,9 +325,7 @@ app.put('/api/projects/:id', async (req, res) => {
         albumPrice: 'album_price', 
         happyMsgSent: 'happyMsgSent', 
         msg1Sent: 'msg1Sent', 
-        msg2Sent: 'msg2Sent',
-        shoot_custom_dates: 'shoot_custom_dates',
-        editing_services: 'editing_services'
+        msg2Sent: 'msg2Sent'
     };
 
     for (let [key, column] of Object.entries(fieldMap)) {
@@ -372,6 +371,7 @@ app.put('/api/projects/:id', async (req, res) => {
 
     if (updateFields.length > 0) {
         values.push(id);
+        console.log('🚀 SQL Update Query:', `UPDATE projects SET ${updateFields.join(', ')} WHERE id = ?`, values);
         await connection.query(`UPDATE projects SET ${updateFields.join(', ')} WHERE id = ?`, values);
     }
 
