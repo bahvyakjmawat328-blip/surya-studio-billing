@@ -116,6 +116,10 @@ const pool = mysql.createPool({
         if (!pExisting.includes(col)) {
             await pool.query(`ALTER TABLE projects ADD COLUMN ${col} ${type}`);
             console.log(`✅ Column ${col} added to projects`);
+        } else if (col === 'shoot_custom_dates' || col === 'editing_services') {
+            // Force change to TEXT if it's a JSON field
+            await pool.query(`ALTER TABLE projects MODIFY COLUMN ${col} TEXT`);
+            console.log(`✅ Column ${col} updated to TEXT`);
         }
     }
 
